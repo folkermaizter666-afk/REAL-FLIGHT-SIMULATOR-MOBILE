@@ -248,6 +248,16 @@ func _build_cockpit_instruments() -> void:
     _add_mcp_pair(mcp_controls, "SPD", _change_speed.bind(-10), _change_speed.bind(10))
     _add_mcp_pair(mcp_controls, "HDG", _change_heading.bind(-5), _change_heading.bind(5))
     _add_mcp_pair(mcp_controls, "ALT", _change_altitude.bind(-500), _change_altitude.bind(500))
+    var hdg_mode := Button.new()
+    hdg_mode.text = "HDG HOLD"
+    hdg_mode.custom_minimum_size = Vector2(82, 28)
+    hdg_mode.pressed.connect(_toggle_heading_hold)
+    mcp_controls.add_child(hdg_mode)
+    var alt_mode := Button.new()
+    alt_mode.text = "ALT HOLD"
+    alt_mode.custom_minimum_size = Vector2(82, 28)
+    alt_mode.pressed.connect(_toggle_altitude_hold)
+    mcp_controls.add_child(alt_mode)
 
 func _add_mcp_pair(parent: HBoxContainer, caption: String, decrease: Callable, increase: Callable) -> void:
     var group := VBoxContainer.new()
@@ -277,6 +287,14 @@ func _change_heading(amount: float) -> void:
 
 func _change_altitude(amount: int) -> void:
     selected_altitude = clampi(selected_altitude + amount, 1000, 39000)
+    _update_labels()
+
+func _toggle_heading_hold() -> void:
+    ap_heading_hold = not ap_heading_hold
+    _update_labels()
+
+func _toggle_altitude_hold() -> void:
+    ap_altitude_hold = not ap_altitude_hold
     _update_labels()
 
 func _new_label(text_value: String) -> Label:
@@ -328,7 +346,7 @@ func _process(delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
     if engines_on:
-        var target_speed := 285.0 * throttle
+        var target_speed := float(selected_speed) if autopilot_on else 285.0 * throttle
         airspeed = move_toward(airspeed, target_speed, delta * (12.0 if throttle > 0.1 else 22.0))
     else:
         airspeed = move_toward(airspeed, 0.0, delta * 18.0)
