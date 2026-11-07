@@ -24,6 +24,16 @@ var speed_label: Label
 var altitude_label: Label
 var heading_label: Label
 var throttle_slider: HSlider
+var pfd_label: Label
+var nd_label: Label
+var mcp_speed_label: Label
+var mcp_heading_label: Label
+var mcp_altitude_label: Label
+var selected_speed := 180
+var selected_heading := 0.0
+var selected_altitude := 3000
+var ap_heading_hold := true
+var ap_altitude_hold := false
 var pitch_input := 0.0
 var bank_input := 0.0
 
@@ -32,6 +42,7 @@ func _ready() -> void:
     _build_aircraft()
     _build_cameras()
     _build_hud()
+    _build_cockpit_instruments()
     _update_labels()
 
 func _build_world() -> void:
@@ -132,7 +143,7 @@ func _build_hud() -> void:
     info.add_child(heading_label)
 
     status_label = Label.new()
-    status_label.position = Vector2(330, 14)
+    status_label.position = Vector2(12, 125)
     status_label.size = Vector2(330, 32)
     status_label.text = "BATTERY OFF  |  ENGINES OFF"
     status_label.add_theme_color_override("font_color", Color.WHITE)
@@ -184,10 +195,89 @@ func _build_hud() -> void:
         attitude.add_child(b)
 
     var note := Label.new()
-    note.position = Vector2(12, 125)
+    note.position = Vector2(12, 151)
     note.text = "PROTOTIPO: física simplificada. Controles y sistemas en desarrollo."
     note.add_theme_color_override("font_color", Color.WHITE)
     root.add_child(note)
+
+func _build_cockpit_instruments() -> void:
+    # PFD y ND compactos en pantalla: controles táctiles y texto de alto contraste.
+    var pfd_panel := PanelContainer.new()
+    pfd_panel.position = Vector2(260, 112)
+    pfd_panel.size = Vector2(300, 178)
+    hud.add_child(pfd_panel)
+    var pfd_box := VBoxContainer.new()
+    pfd_panel.add_child(pfd_box)
+    var pfd_title := _new_label("PFD  |  PRIMARY FLIGHT")
+    pfd_title.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
+    pfd_box.add_child(pfd_title)
+    pfd_label = _new_label("")
+    pfd_label.add_theme_font_size_override("font_size", 17)
+    pfd_box.add_child(pfd_label)
+
+    var nd_panel := PanelContainer.new()
+    nd_panel.position = Vector2(575, 112)
+    nd_panel.size = Vector2(310, 178)
+    hud.add_child(nd_panel)
+    var nd_box := VBoxContainer.new()
+    nd_panel.add_child(nd_box)
+    var nd_title := _new_label("ND  |  NAVIGATION DISPLAY")
+    nd_title.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
+    nd_box.add_child(nd_title)
+    nd_label = _new_label("")
+    nd_label.add_theme_font_size_override("font_size", 17)
+    nd_box.add_child(nd_label)
+
+    var mcp_panel := PanelContainer.new()
+    mcp_panel.position = Vector2(330, 78)
+    mcp_panel.size = Vector2(555, 28)
+    hud.add_child(mcp_panel)
+    var mcp_row := HBoxContainer.new()
+    mcp_panel.add_child(mcp_row)
+    mcp_speed_label = _new_label("SPD 180")
+    mcp_heading_label = _new_label("HDG 000")
+    mcp_altitude_label = _new_label("ALT 3000")
+    mcp_row.add_child(mcp_speed_label)
+    mcp_row.add_child(mcp_heading_label)
+    mcp_row.add_child(mcp_altitude_label)
+
+    var mcp_controls := HBoxContainer.new()
+    mcp_controls.position = Vector2(330, 10)
+    mcp_controls.size = Vector2(350, 58)
+    hud.add_child(mcp_controls)
+    _add_mcp_pair(mcp_controls, "SPD", _change_speed.bind(-10), _change_speed.bind(10))
+    _add_mcp_pair(mcp_controls, "HDG", _change_heading.bind(-5), _change_heading.bind(5))
+    _add_mcp_pair(mcp_controls, "ALT", _change_altitude.bind(-500), _change_altitude.bind(500))
+
+func _add_mcp_pair(parent: HBoxContainer, caption: String, decrease: Callable, increase: Callable) -> void:
+    var group := VBoxContainer.new()
+    parent.add_child(group)
+    var title := _new_label(caption)
+    group.add_child(title)
+    var buttons := HBoxContainer.new()
+    group.add_child(buttons)
+    var minus := Button.new()
+    minus.text = "−"
+    minus.custom_minimum_size = Vector2(42, 28)
+    minus.pressed.connect(decrease)
+    buttons.add_child(minus)
+    var plus := Button.new()
+    plus.text = "+"
+    plus.custom_minimum_size = Vector2(42, 28)
+    plus.pressed.connect(increase)
+    buttons.add_child(plus)
+
+func _change_speed(amount: int) -> void:
+    selected_speed = clampi(selected_speed + amount, 100, 340)
+    _update_labels()
+
+func _change_heading(amount: float) -> void:
+    selected_heading = fposmod(selected_heading + amount, 360.0)
+    _update_labels()
+
+func _change_altitude(amount: int) -> void:
+    selected_altitude = clampi(selected_altitude + amount, 1000, 39000)
+    _update_labels()
 
 func _new_label(text_value: String) -> Label:
     var l := Label.new()
@@ -244,8 +334,18 @@ func _physics_process(delta: float) -> void:
         airspeed = move_toward(airspeed, 0.0, delta * 18.0)
 
     if autopilot_on:
-        pitch = move_toward(pitch, 0.0, delta * 0.25)
-        bank = move_toward(bank, 0.0, delta * 0.25)
+        if ap_altitude_hold:
+            var altitude_error := float(selected_altitude) - altitude
+            var target_pitch := clampf(altitude_error / 5000.0, -0.22, 0.22)
+            pitch = move_toward(pitch, target_pitch, delta * 0.18)
+        else:
+            pitch = move_toward(pitch, 0.0, delta * 0.25)
+        if ap_heading_hold:
+            var heading_error := wrapf(selected_heading - heading, -180.0, 180.0)
+            var target_bank := clampf(heading_error / 45.0, -0.35, 0.35)
+            bank = move_toward(bank, target_bank, delta * 0.22)
+        else:
+            bank = move_toward(bank, 0.0, delta * 0.25)
     else:
         pitch = clampf(pitch + pitch_input * delta * 0.5, -0.35, 0.35)
         bank = clampf(bank + bank_input * delta * 0.65, -0.65, 0.65)
@@ -276,3 +376,17 @@ func _update_labels() -> void:
         "DOWN" if gear_down else "UP",
         flaps * 5
     ]
+    if is_instance_valid(pfd_label):
+        pfd_label.text = "IAS       %03d kt     MACH 0.%02d\nALT       %05d ft\nV/S       %+04d ft/min\nATT       P %+03d°   R %+03d°" % [
+            int(airspeed), int(airspeed / 10.0), int(altitude),
+            int(vertical_speed * 100.0), int(rad_to_deg(pitch)), int(rad_to_deg(bank))
+        ]
+    if is_instance_valid(nd_label):
+        nd_label.text = "HDG       %03d°\nSELECT    %03d°\nTRACK     %03d°\nRANGE     20 NM\nMODE      %s" % [
+            int(heading), int(selected_heading), int(heading),
+            "HDG" if ap_heading_hold else "MAP"
+        ]
+    if is_instance_valid(mcp_speed_label):
+        mcp_speed_label.text = "SPD %03d" % selected_speed
+        mcp_heading_label.text = "HDG %03d" % int(selected_heading)
+        mcp_altitude_label.text = "ALT %05d" % selected_altitude
