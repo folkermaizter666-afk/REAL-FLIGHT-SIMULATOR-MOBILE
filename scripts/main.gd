@@ -1,5 +1,8 @@
 extends Node3D
 
+const PFDDisplay = preload("res://scripts/pfd_display.gd")
+const NDDisplay = preload("res://scripts/nd_display.gd")
+
 # Prototipo educativo: física simplificada, no apta para entrenamiento aeronáutico.
 const GRAVITY := 9.81
 var throttle := 0.0
@@ -24,8 +27,8 @@ var speed_label: Label
 var altitude_label: Label
 var heading_label: Label
 var throttle_slider: HSlider
-var pfd_label: Label
-var nd_label: Label
+var pfd_display: Control
+var nd_display: Control
 var mcp_speed_label: Label
 var mcp_heading_label: Label
 var mcp_altitude_label: Label
@@ -201,32 +204,16 @@ func _build_hud() -> void:
     root.add_child(note)
 
 func _build_cockpit_instruments() -> void:
-    # PFD y ND compactos en pantalla: controles táctiles y texto de alto contraste.
-    var pfd_panel := PanelContainer.new()
-    pfd_panel.position = Vector2(260, 112)
-    pfd_panel.size = Vector2(300, 178)
-    hud.add_child(pfd_panel)
-    var pfd_box := VBoxContainer.new()
-    pfd_panel.add_child(pfd_box)
-    var pfd_title := _new_label("PFD  |  PRIMARY FLIGHT")
-    pfd_title.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
-    pfd_box.add_child(pfd_title)
-    pfd_label = _new_label("")
-    pfd_label.add_theme_font_size_override("font_size", 17)
-    pfd_box.add_child(pfd_label)
+    # Instrumentos 2D ligeros, ubicados sin tapar los controles del teléfono.
+    pfd_display = PFDDisplay.new()
+    pfd_display.position = Vector2(12, 180)
+    pfd_display.size = Vector2(300, 140)
+    hud.add_child(pfd_display)
 
-    var nd_panel := PanelContainer.new()
-    nd_panel.position = Vector2(575, 112)
-    nd_panel.size = Vector2(310, 178)
-    hud.add_child(nd_panel)
-    var nd_box := VBoxContainer.new()
-    nd_panel.add_child(nd_box)
-    var nd_title := _new_label("ND  |  NAVIGATION DISPLAY")
-    nd_title.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
-    nd_box.add_child(nd_title)
-    nd_label = _new_label("")
-    nd_label.add_theme_font_size_override("font_size", 17)
-    nd_box.add_child(nd_label)
+    nd_display = NDDisplay.new()
+    nd_display.position = Vector2(325, 180)
+    nd_display.size = Vector2(310, 140)
+    hud.add_child(nd_display)
 
     var mcp_panel := PanelContainer.new()
     mcp_panel.position = Vector2(330, 78)
@@ -249,13 +236,15 @@ func _build_cockpit_instruments() -> void:
     _add_mcp_pair(mcp_controls, "HDG", _change_heading.bind(-5), _change_heading.bind(5))
     _add_mcp_pair(mcp_controls, "ALT", _change_altitude.bind(-500), _change_altitude.bind(500))
     var hdg_mode := Button.new()
-    hdg_mode.text = "HDG HOLD"
-    hdg_mode.custom_minimum_size = Vector2(82, 28)
+    hdg_mode.text = "H"
+    hdg_mode.tooltip_text = "Activar o desactivar HDG HOLD"
+    hdg_mode.custom_minimum_size = Vector2(42, 28)
     hdg_mode.pressed.connect(_toggle_heading_hold)
     mcp_controls.add_child(hdg_mode)
     var alt_mode := Button.new()
-    alt_mode.text = "ALT HOLD"
-    alt_mode.custom_minimum_size = Vector2(82, 28)
+    alt_mode.text = "A"
+    alt_mode.tooltip_text = "Activar o desactivar ALT HOLD"
+    alt_mode.custom_minimum_size = Vector2(42, 28)
     alt_mode.pressed.connect(_toggle_altitude_hold)
     mcp_controls.add_child(alt_mode)
 
@@ -310,6 +299,7 @@ func _toggle_battery() -> void:
     battery_on = not battery_on
     if not battery_on:
         engines_on = false
+        autopilot_on = false
     _update_labels()
 
 func _toggle_engines() -> void:
@@ -371,7 +361,7 @@ func _physics_process(delta: float) -> void:
     heading = fposmod(heading + sin(bank) * airspeed * delta * 0.018, 360.0)
     var lift_factor := clampf((airspeed - 80.0) / 100.0, 0.0, 1.3)
     vertical_speed = (pitch * airspeed * 0.10) + (lift_factor * 1.8) - (0.7 if airspeed < 100.0 else 0.0)
-    altitude = maxf(0.0, altitude + vertical_speed * delta * 60.0)
+    altitude = maxf(0.0, altitude + vertical_speed * delta)
 
     if plane:
         plane.rotation.z = -bank
@@ -394,16 +384,10 @@ func _update_labels() -> void:
         "DOWN" if gear_down else "UP",
         flaps * 5
     ]
-    if is_instance_valid(pfd_label):
-        pfd_label.text = "IAS       %03d kt     MACH 0.%02d\nALT       %05d ft\nV/S       %+04d ft/min\nATT       P %+03d°   R %+03d°" % [
-            int(airspeed), int(airspeed / 10.0), int(altitude),
-            int(vertical_speed * 100.0), int(rad_to_deg(pitch)), int(rad_to_deg(bank))
-        ]
-    if is_instance_valid(nd_label):
-        nd_label.text = "HDG       %03d°\nSELECT    %03d°\nTRACK     %03d°\nRANGE     20 NM\nMODE      %s" % [
-            int(heading), int(selected_heading), int(heading),
-            "HDG" if ap_heading_hold else "MAP"
-        ]
+    if is_instance_valid(pfd_display):
+        pfd_display.set_flight_data(airspeed, altitude, rad_to_deg(pitch), rad_to_deg(bank), vertical_speed * 60.0)
+    if is_instance_valid(nd_display):
+        nd_display.set_navigation_data(heading, selected_heading)
     if is_instance_valid(mcp_speed_label):
         mcp_speed_label.text = "SPD %03d" % selected_speed
         mcp_heading_label.text = "HDG %03d" % int(selected_heading)
