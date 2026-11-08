@@ -385,9 +385,9 @@ func _update_labels() -> void:
         flaps * 5
     ]
     if is_instance_valid(pfd_display):
-        pfd_display.set_flight_data(airspeed, altitude, rad_to_deg(pitch), rad_to_deg(bank), vertical_speed * 60.0)
+        pfd_display.call("set_flight_data", airspeed, altitude, rad_to_deg(pitch), rad_to_deg(bank), vertical_speed * 60.0)
     if is_instance_valid(nd_display):
-        nd_display.set_navigation_data(heading, selected_heading)
+        nd_display.call("set_navigation_data", heading, selected_heading)
     if is_instance_valid(mcp_speed_label):
         mcp_speed_label.text = "SPD %03d" % selected_speed
         mcp_heading_label.text = "HDG %03d" % int(selected_heading)
