@@ -146,11 +146,11 @@ func _build_hud() -> void:
     info.add_child(heading_label)
 
     status_label = Label.new()
-    status_label.position = Vector2(12, 125)
-    status_label.size = Vector2(330, 32)
+    status_label.position = Vector2(12, 122)
+    status_label.size = Vector2(620, 24)
     status_label.text = "BATTERY OFF  |  ENGINES OFF"
     status_label.add_theme_color_override("font_color", Color.WHITE)
-    status_label.add_theme_font_size_override("font_size", 16)
+    status_label.add_theme_font_size_override("font_size", 14)
     root.add_child(status_label)
 
     var controls := HBoxContainer.new()
