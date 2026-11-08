@@ -4,6 +4,9 @@ extends Control
 var heading_deg := 0.0
 var selected_heading_deg := 0.0
 
+func _ready() -> void:
+    clip_contents = true
+
 func set_navigation_data(current_heading: float, selected_heading: float) -> void:
     heading_deg = current_heading
     selected_heading_deg = selected_heading
