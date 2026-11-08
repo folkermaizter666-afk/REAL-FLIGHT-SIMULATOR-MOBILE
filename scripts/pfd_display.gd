@@ -7,6 +7,9 @@ var pitch_deg := 0.0
 var roll_deg := 0.0
 var vertical_speed_fpm := 0.0
 
+func _ready() -> void:
+    clip_contents = true
+
 func set_flight_data(speed: float, height: float, pitch_value: float, roll_value: float, vs_fpm: float) -> void:
     airspeed = speed
     altitude = height
@@ -48,6 +51,7 @@ func _draw() -> void:
     draw_rect(Rect2(w - 49, 8, 46, h - 16), Color(0.45, 0.58, 0.68), false, 1.0)
 
     var font := get_theme_default_font()
+    draw_string(font, Vector2(54, 13), "PFD  |  DEMO", HORIZONTAL_ALIGNMENT_LEFT, 100, 10, Color(0.55, 0.9, 1.0))
     draw_string(font, Vector2(5, 20), "IAS", HORIZONTAL_ALIGNMENT_LEFT, 40, 10, Color(0.55, 0.9, 1.0))
     draw_string(font, Vector2(w - 47, 20), "ALT", HORIZONTAL_ALIGNMENT_LEFT, 40, 10, Color(0.55, 0.9, 1.0))
     draw_string(font, Vector2(5, h * 0.5 + 4), "%03d" % int(airspeed), HORIZONTAL_ALIGNMENT_LEFT, 43, 11, Color(0.55, 1.0, 0.65))
@@ -57,4 +61,6 @@ func _draw() -> void:
     draw_line(center + Vector2(-21, 0), center + Vector2(-7, 0), Color(1.0, 0.85, 0.2), 2.5)
     draw_line(center + Vector2(7, 0), center + Vector2(21, 0), Color(1.0, 0.85, 0.2), 2.5)
     draw_line(center + Vector2(0, -5), center + Vector2(0, 5), Color(1.0, 0.85, 0.2), 2.0)
-    draw_string(font, Vector2(w * 0.5 - 48, h - 4), "VS %+.0f ft/min" % vertical_speed_fpm, HORIZONTAL_ALIGNMENT_LEFT, 100, 10, Color.WHITE)
+    var vs_sign := "+" if vertical_speed_fpm >= 0.0 else ""
+    var vs_text := "VS " + vs_sign + str(roundi(vertical_speed_fpm)) + " ft/min"
+    draw_string(font, Vector2(w * 0.5 - 48, h - 4), vs_text, HORIZONTAL_ALIGNMENT_LEFT, 100, 10, Color.WHITE)
