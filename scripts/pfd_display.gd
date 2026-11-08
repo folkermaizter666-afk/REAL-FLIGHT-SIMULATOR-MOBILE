@@ -28,13 +28,18 @@ func _draw() -> void:
     var roll_rad := deg_to_rad(roll_deg)
     var axis := Vector2(cos(roll_rad), sin(roll_rad))
     var normal := Vector2(-axis.y, axis.x)
-    var horizon := center + Vector2(0.0, pitch_deg * 0.72)
-    var span := w * 0.72
+    var central_rect := Rect2(Vector2(52, 20), Vector2(w - 104, h - 40))
+    var horizon_y := clampf(center.y + pitch_deg * 0.72, central_rect.position.y + 2.0, central_rect.end.y - 2.0)
+    draw_rect(Rect2(central_rect.position, Vector2(central_rect.size.x, horizon_y - central_rect.position.y)), Color(0.12, 0.34, 0.58), true)
+    draw_rect(Rect2(Vector2(central_rect.position.x, horizon_y), Vector2(central_rect.size.x, central_rect.end.y - horizon_y)), Color(0.42, 0.25, 0.12), true)
+    var half_x := central_rect.size.x * 0.5
+    var half_y := central_rect.size.y * 0.5
+    var span_x := half_x / maxf(absf(axis.x), 0.001)
+    var span_y := half_y / maxf(absf(axis.y), 0.001)
+    var span := minf(span_x, span_y)
+    var horizon := Vector2(center.x, horizon_y)
     var point_a := horizon - axis * span
     var point_b := horizon + axis * span
-    var far := normal * h * 1.6
-    draw_colored_polygon(PackedVector2Array([point_a - far, point_b - far, point_b, point_a]), Color(0.12, 0.34, 0.58))
-    draw_colored_polygon(PackedVector2Array([point_a, point_b, point_b + far, point_a + far]), Color(0.42, 0.25, 0.12))
     draw_line(point_a, point_b, Color(0.95, 0.95, 0.9), 2.0)
 
     # Marcas de cabeceo.
