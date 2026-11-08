@@ -45,7 +45,10 @@ func _draw() -> void:
     # Marcas de cabeceo.
     for mark in [-20, -10, 10, 20]:
         var mark_center := horizon + normal * float(mark) * 0.72
-        draw_line(mark_center - axis * 13.0, mark_center + axis * 13.0, Color.WHITE, 1.2)
+        var mark_start := mark_center - axis * 13.0
+        var mark_end := mark_center + axis * 13.0
+        if central_rect.has_point(mark_start) and central_rect.has_point(mark_end):
+            draw_line(mark_start, mark_end, Color.WHITE, 1.2)
 
     # Cintas de velocidad y altitud encima del horizonte.
     draw_rect(Rect2(3, 8, 46, h - 16), Color(0.025, 0.055, 0.075), true)
